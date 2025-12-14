@@ -67,7 +67,7 @@ export function renderStatusPage(services: ServiceStatus[]) {
 				</div>
 				<div style="text-align: right;">
 					<div style="font-size: 14px; font-weight: 500; color: ${statusColor};">${statusText}</div>
-					<div style="font-size: 12px; color: #94a3b8;">${service.is_up ? 'Up' : 'Down'} for ${duration}</div>
+					<div style="font-size: 12px; color: #94a3b8;">${statusText} for ${duration}</div>
 					<div style="font-size: 11px; color: #64748b;">Response: ${responseTime}</div>
 				</div>
 			</div>

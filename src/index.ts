@@ -54,7 +54,6 @@ export default {
 		// Trigger manual healthcheck via /check endpoint
 		if (url.pathname === '/check') {
 			await performHealthChecks(env);
-			return new Response('Health checks completed', { status: 200 });
 		}
 
 		// Main status page
