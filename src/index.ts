@@ -1,5 +1,20 @@
 import { renderStatusPage, ServiceStatus } from "./renderHtml";
 
+async function sendToTelegram(msg: string, env: Env) {
+	const form = new FormData();
+	form.append("text", msg);
+	form.append("chat_id", `${env.TELEGRAM_CHAT_ID}`);
+
+	const init = {
+		method: 'POST',
+		headers: {
+			"Authorization": `Bearer ${env.TELEGRAM_TOKEN}`
+		},
+		body: form
+	};
+	await fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/sendMessage`, init);
+}
+
 async function checkServiceHealth(url: string): Promise<{ isUp: boolean; responseTimeMs: number | null }> {
 	const startTime = Date.now();
 	try {
@@ -40,6 +55,10 @@ async function performHealthChecks(env: Env): Promise<void> {
 			await env.DB.prepare(
 				"UPDATE services SET is_up = ?, last_checked_at = datetime('now'), status_changed_at = datetime('now'), response_time_ms = ? WHERE id = ?"
 			).bind(isUp ? 1 : 0, responseTimeMs, service.id).run();
+
+			const statusText = isUp ? 'UP' : 'DOWN';
+			const message = `Service "${service.name}" is now ${statusText}.\nURL: ${service.url}`;
+			await sendToTelegram(message, env);
 		} else {
 			await env.DB.prepare(
 				"UPDATE services SET last_checked_at = datetime('now'), response_time_ms = ? WHERE id = ?"

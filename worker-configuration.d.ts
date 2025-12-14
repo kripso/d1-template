@@ -9,7 +9,10 @@ declare namespace Cloudflare {
 		DB: D1Database;
 	}
 }
-interface Env extends Cloudflare.Env {}
+interface Env extends Cloudflare.Env {
+	TELEGRAM_CHAT_ID: any;
+	TELEGRAM_TOKEN: any;
+}
 
 // Begin runtime types
 /*! *****************************************************************************
