@@ -33,9 +33,10 @@ async function performHealthChecks(env: Env): Promise<void> {
 	for (const service of services.results) {
 		const { isUp, responseTimeMs } = await checkServiceHealth(service.url);
 		const wasUp = service.is_up === 1;
+		const isFirstCheck = service.status_changed_at === null;
 		const statusChanged = wasUp !== isUp;
 		
-		if (statusChanged) {
+		if (statusChanged || isFirstCheck) {
 			await env.DB.prepare(
 				"UPDATE services SET is_up = ?, last_checked_at = datetime('now'), status_changed_at = datetime('now'), response_time_ms = ? WHERE id = ?"
 			).bind(isUp ? 1 : 0, responseTimeMs, service.id).run();
