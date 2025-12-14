@@ -51,12 +51,29 @@ export default {
 	async fetch(request, env) {
 		const url = new URL(request.url);
 		
-		// Trigger manual healthcheck via /check endpoint
-		if (url.pathname === '/check') {
-			await performHealthChecks(env);
-			return new Response('Health checks completed', { status: 200 });
-		}
+		// Add url to services
+		env.DB.prepare(
+			`
+			CREATE TABLE IF NOT EXISTS services (
+			id INTEGER PRIMARY KEY NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL UNIQUE,
+			is_up INTEGER NOT NULL DEFAULT 1,
+			last_checked_at TEXT,
+			status_changed_at TEXT,
+			response_time_ms INTEGER,
+			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+			);`
+		).run();
 		
+		// insert url to services if needed
+		const name = url.searchParams.get("name");
+		const serviceUrl = url.searchParams.get("url");
+
+		env.DB.prepare(
+			"INSERT OR IGNORE INTO services (name, url) VALUES (?, ?)"
+		).bind(name, serviceUrl).run();
+
 		// Main status page
 		const stmt = env.DB.prepare("SELECT * FROM services ORDER BY name");
 		const { results } = await stmt.all<ServiceStatus>();
