@@ -67,6 +67,16 @@ async function performHealthChecks(env: Env): Promise<void> {
 	}
 }
 
+async function lastUpdated(services: ServiceStatus[]): Promise<Date> {
+	return new Date(
+		services
+			.map(s => s.last_checked_at)
+			.filter((d): d is string => d !== null)
+			.sort()
+			.reverse()[0] || new Date().toISOString()
+	);
+}
+
 export default {
 	async fetch(request, env) {
 		const url = new URL(request.url);
@@ -79,8 +89,9 @@ export default {
 		// Main status page
 		const stmt = env.DB.prepare("SELECT * FROM services ORDER BY name");
 		const { results } = await stmt.all<ServiceStatus>();
+		const lastUpdatedDate = await lastUpdated(results);
 
-		return new Response(renderStatusPage(results), {
+		return new Response(renderStatusPage(results, lastUpdatedDate), {
 			headers: {
 				"content-type": "text/html",
 			},

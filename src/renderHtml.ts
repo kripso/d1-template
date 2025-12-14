@@ -43,7 +43,7 @@ function escapeHtml(text: string): string {
 		.replace(/'/g, '&#039;');
 }
 
-export function renderStatusPage(services: ServiceStatus[]) {
+export function renderStatusPage(services: ServiceStatus[], lastUpdated: Date) {
 	const allUp = services.every(s => s.is_up === 1);
 	const overallStatus = allUp ? '✅ All Systems Operational' : '⚠️ Some Systems Down';
 	const overallColor = allUp ? '#10b981' : '#f59e0b';
@@ -131,7 +131,7 @@ export function renderStatusPage(services: ServiceStatus[]) {
 			${serviceRows}
 		</div>
 		<div class="last-updated">
-			Last updated: ${new Date().toLocaleString()}
+			Last updated: ${lastUpdated.toLocaleString()}
 		</div>
 	</div>
 </body>
