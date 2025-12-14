@@ -1,29 +1,130 @@
-export function renderHtml(content: string) {
+export interface ServiceStatus {
+	id: number;
+	name: string;
+	url: string;
+	is_up: number;
+	last_checked_at: string | null;
+	status_changed_at: string | null;
+	response_time_ms: number | null;
+	created_at: string;
+}
+
+function formatDuration(startDate: string | null): string {
+	if (!startDate) return 'Unknown';
+	const start = new Date(startDate + 'Z');
+	const now = new Date();
+	const diffMs = now.getTime() - start.getTime();
+	
+	const seconds = Math.floor(diffMs / 1000);
+	const minutes = Math.floor(seconds / 60);
+	const hours = Math.floor(minutes / 60);
+	const days = Math.floor(hours / 24);
+	
+	if (days > 0) return `${days}d ${hours % 24}h`;
+	if (hours > 0) return `${hours}h ${minutes % 60}m`;
+	if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+	return `${seconds}s`;
+}
+
+function escapeHtml(text: string): string {
+	return text.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
+}
+
+export function renderStatusPage(services: ServiceStatus[]) {
+	const allUp = services.every(s => s.is_up === 1);
+	const overallStatus = allUp ? '✅ All Systems Operational' : '⚠️ Some Systems Down';
+	const overallColor = allUp ? '#10b981' : '#f59e0b';
+	
+	const serviceRows = services.map(service => {
+		const statusIcon = service.is_up ? '🟢' : '🔴';
+		const statusText = service.is_up ? 'Up' : 'Down';
+		const statusColor = service.is_up ? '#10b981' : '#ef4444';
+		const duration = formatDuration(service.status_changed_at);
+		const responseTime = service.response_time_ms ? `${service.response_time_ms}ms` : '-';
+		const lastChecked = service.last_checked_at 
+			? new Date(service.last_checked_at + 'Z').toLocaleString()
+			: 'Never';
+		
+		return `
+			<div class="service-card" style="background: #1e293b; border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+				<div>
+					<div style="font-size: 18px; font-weight: 600; color: #f1f5f9;">${statusIcon} ${escapeHtml(service.name)}</div>
+					<div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">${escapeHtml(service.url)}</div>
+				</div>
+				<div style="text-align: right;">
+					<div style="font-size: 14px; font-weight: 500; color: ${statusColor};">${statusText}</div>
+					<div style="font-size: 12px; color: #94a3b8;">${service.is_up ? 'Up' : 'Down'} for ${duration}</div>
+					<div style="font-size: 11px; color: #64748b;">Response: ${responseTime}</div>
+				</div>
+			</div>
+		`;
+	}).join('');
+
 	return `
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>D1</title>
-        <link rel="stylesheet" type="text/css" href="https://static.integrations.cloudflare.com/styles.css">
-      </head>
-    
-      <body>
-        <header>
-          <img
-            src="https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/30e0d3f6-6076-40f8-7abb-8a7676f83c00/public"
-          />
-          <h1>🎉 Successfully connected d1-template to D1</h1>
-        </header>
-        <main>
-          <p>Your D1 Database contains the following data:</p>
-          <pre><code><span style="color: #0E838F">&gt; </span>SELECT * FROM comments LIMIT 3;<br>${content}</code></pre>
-          <small class="blue">
-            <a target="_blank" href="https://developers.cloudflare.com/d1/tutorials/build-a-comments-api/">Build a comments API with Workers and D1</a>
-          </small>
-        </main>
-      </body>
-    </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta http-equiv="refresh" content="60">
+	<title>Status Page</title>
+	<style>
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			background: #0f172a;
+			color: #f1f5f9;
+			min-height: 100vh;
+			padding: 40px 20px;
+		}
+		.container {
+			max-width: 800px;
+			margin: 0 auto;
+		}
+		header {
+			text-align: center;
+			margin-bottom: 40px;
+		}
+		h1 {
+			font-size: 28px;
+			margin-bottom: 8px;
+		}
+		.overall-status {
+			font-size: 20px;
+			padding: 16px;
+			border-radius: 8px;
+			margin-bottom: 32px;
+			text-align: center;
+		}
+		.last-updated {
+			text-align: center;
+			font-size: 12px;
+			color: #64748b;
+			margin-top: 24px;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<header>
+			<h1>📊 Service Status</h1>
+			<p style="color: #94a3b8;">Real-time health monitoring</p>
+		</header>
+		<div class="overall-status" style="background: ${overallColor}20; border: 1px solid ${overallColor};">
+			${overallStatus}
+		</div>
+		<div class="services">
+			${serviceRows}
+		</div>
+		<div class="last-updated">
+			Last updated: ${new Date().toLocaleString()}
+		</div>
+	</div>
+</body>
+</html>
 `;
 }
