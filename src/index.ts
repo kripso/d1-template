@@ -18,6 +18,8 @@ async function checkServiceHealth(url: string): Promise<{ isUp: boolean; respons
 		const responseTimeMs = Date.now() - startTime;
 		
 		// Consider 2xx and 3xx status codes as "up"
+		// 3xx redirects indicate the server is responding, even if redirecting
+		// This is intentional for status page monitoring as it shows reachability
 		const isUp = response.status >= 200 && response.status < 400;
 		return { isUp, responseTimeMs };
 	} catch {

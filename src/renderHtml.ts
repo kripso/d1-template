@@ -9,9 +9,18 @@ export interface ServiceStatus {
 	created_at: string;
 }
 
+// Parse D1 datetime string to Date object
+// D1 stores dates via datetime('now') in UTC format (e.g., '2025-12-14 13:46:14')
+function parseD1DateTime(dateStr: string | null): Date | null {
+	if (!dateStr) return null;
+	// D1 datetime format is 'YYYY-MM-DD HH:MM:SS' in UTC
+	// Append 'Z' to indicate UTC timezone for proper parsing
+	return new Date(dateStr.replace(' ', 'T') + 'Z');
+}
+
 function formatDuration(startDate: string | null): string {
-	if (!startDate) return 'Unknown';
-	const start = new Date(startDate + 'Z');
+	const start = parseD1DateTime(startDate);
+	if (!start) return 'Unknown';
 	const now = new Date();
 	const diffMs = now.getTime() - start.getTime();
 	
@@ -45,8 +54,9 @@ export function renderStatusPage(services: ServiceStatus[]) {
 		const statusColor = service.is_up ? '#10b981' : '#ef4444';
 		const duration = formatDuration(service.status_changed_at);
 		const responseTime = service.response_time_ms ? `${service.response_time_ms}ms` : '-';
-		const lastChecked = service.last_checked_at 
-			? new Date(service.last_checked_at + 'Z').toLocaleString()
+		const lastCheckedDate = parseD1DateTime(service.last_checked_at);
+		const lastChecked = lastCheckedDate 
+			? lastCheckedDate.toLocaleString()
 			: 'Never';
 		
 		return `
