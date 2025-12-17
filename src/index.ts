@@ -87,10 +87,7 @@ export default {
 	async fetch(request, env) {
 		const url = new URL(request.url);
 		
-		// Trigger manual healthcheck via /check endpoint
-		if (url.pathname === '/check') {
-			await performHealthChecks(env);
-		}
+		await performHealthChecks(env);
 
 		// Main status page
 		const stmt = env.DB.prepare("SELECT * FROM services ORDER BY name");
