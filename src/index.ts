@@ -12,7 +12,9 @@ async function sendToTelegram(msg: string, env: Env) {
 		},
 		body: form
 	};
-	await fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/sendMessage`, init);
+	const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/sendMessage`, init);
+	// Cancel the response body to prevent deadlock as we don't need to read it
+	response.body?.cancel();
 }
 
 async function checkServiceHealth(url: string): Promise<{ isUp: boolean; responseTimeMs: number | null }> {
@@ -36,6 +38,10 @@ async function checkServiceHealth(url: string): Promise<{ isUp: boolean; respons
 		// 3xx redirects indicate the server is responding, even if redirecting
 		// This is intentional for status page monitoring as it shows reachability
 		const isUp = response.status >= 200 && response.status < 400;
+		
+		// Cancel the response body to prevent deadlock as we only need status code
+		response.body?.cancel();
+		
 		return { isUp, responseTimeMs };
 	} catch {
 		return { isUp: false, responseTimeMs: null };
