@@ -14,7 +14,7 @@
 		"enabled": true
 	},
 	"triggers": {
-		"crons": ["*/2 * * * *"]
+		"crons": ["* * * * *"]
 	},
   	"routes": [
 		{
