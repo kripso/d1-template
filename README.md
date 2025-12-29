@@ -1,59 +1,177 @@
-# Worker + D1 Database
+# Cloudflare Worker Status Page
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/d1-template)
+A real-time service status monitoring application built with SvelteKit and deployed on Cloudflare Workers with D1 Database.
 
 ![Worker + D1 Template Preview](https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/cb7cb0a9-6102-4822-633c-b76b7bb25900/public)
 
-<!-- dash-content-start -->
+## Features
 
-D1 is Cloudflare's native serverless SQL database ([docs](https://developers.cloudflare.com/d1/)). This project demonstrates using a Worker with a D1 binding to execute a SQL statement. A simple frontend displays the result of this query:
+- 🚀 Built with SvelteKit and Cloudflare Workers
+- 💾 Uses Cloudflare D1 for serverless SQL database
+- ⏰ Automated health checks via cron triggers (every minute)
+- 📱 Telegram notifications for status changes
+- 🎨 Beautiful dark-themed UI
+- 📊 Real-time response time tracking
 
-```SQL
-SELECT * FROM comments LIMIT 3;
-```
+## Tech Stack
 
-The D1 database is initialized with a `comments` table and this data:
-
-```SQL
-INSERT INTO comments (author, content)
-VALUES
-    ('Kristian', 'Congrats!'),
-    ('Serena', 'Great job!'),
-    ('Max', 'Keep up the good work!')
-;
-```
-
-> [!IMPORTANT]
-> When using C3 to create this project, select "no" when it asks if you want to deploy. You need to follow this project's [setup steps](https://github.com/cloudflare/templates/tree/main/d1-template#setup-steps) before deploying.
-
-<!-- dash-content-end -->
+- **Framework**: SvelteKit
+- **Deployment**: Cloudflare Workers with `@sveltejs/adapter-cloudflare`
+- **Database**: Cloudflare D1 (serverless SQL)
+- **Notifications**: Telegram Bot API
+- **Styling**: Scoped CSS in Svelte components
 
 ## Getting Started
 
-Outside of this repo, you can start a new project with this template using [C3](https://developers.cloudflare.com/pages/get-started/c3/) (the `create-cloudflare` CLI):
+### Prerequisites
 
-```
-npm create cloudflare@latest -- --template=cloudflare/templates/d1-template
-```
+- Node.js (v18 or higher)
+- npm or pnpm
+- Cloudflare account with Workers and D1 enabled
 
-A live public deployment of this template is available at [https://d1-template.templates.workers.dev](https://d1-template.templates.workers.dev)
+### Installation
 
-## Setup Steps
-
-1. Install the project dependencies with a package manager of your choice:
+1. Clone the repository and install dependencies:
    ```bash
    npm install
    ```
-2. Create a [D1 database](https://developers.cloudflare.com/d1/get-started/) with the name "d1-template-database":
+
+2. Create a [D1 database](https://developers.cloudflare.com/d1/get-started/):
    ```bash
    npx wrangler d1 create d1-template-database
    ```
-   ...and update the `database_id` field in `wrangler.json` with the new database ID.
-3. Run the following db migration to initialize the database (notice the `migrations` directory in this project):
+   
+3. Update the `database_id` field in `wrangler.json` with your new database ID.
+
+4. Run the database migrations to initialize the database:
    ```bash
    npx wrangler d1 migrations apply --remote d1-template-database
    ```
-4. Deploy the project!
+
+5. (Optional) Set up Telegram notifications by adding secrets:
    ```bash
-   npx wrangler deploy
+   npx wrangler secret put TELEGRAM_TOKEN
+   npx wrangler secret put TELEGRAM_CHAT_ID
    ```
+
+### Development
+
+#### Local Development with SvelteKit
+
+Run the Vite development server:
+```bash
+npm run dev
+```
+
+Note: This runs the SvelteKit dev server without Workers runtime. For full Workers environment testing, use wrangler dev.
+
+#### Local Development with Wrangler
+
+First, seed the local database:
+```bash
+npm run seedLocalD1
+```
+
+Then run the local Cloudflare Workers environment:
+```bash
+npm run wrangler:dev
+```
+
+The application will be available at `http://localhost:8787`
+
+### Building
+
+Build the SvelteKit application for production:
+```bash
+npm run build
+```
+
+This will:
+1. Build the SvelteKit app with Vite
+2. Generate the Cloudflare Workers adapter output
+3. Add the scheduled handler for cron triggers
+
+### Deployment
+
+Deploy to Cloudflare Workers:
+```bash
+npm run deploy
+```
+
+This will:
+1. Apply remote database migrations (if any)
+2. Build the application
+3. Deploy to Cloudflare Workers
+
+## Project Structure
+
+```
+.
+├── src/
+│   ├── lib/
+│   │   └── utils.ts           # Shared utilities and health check logic
+│   ├── routes/
+│   │   ├── +page.svelte       # Main status page component
+│   │   └── +page.server.ts    # Server-side data loading
+│   ├── app.d.ts               # TypeScript definitions
+│   └── app.html               # HTML template
+├── migrations/                # D1 database migrations
+├── wrangler.json             # Cloudflare Workers configuration
+├── svelte.config.js          # SvelteKit configuration
+├── vite.config.ts            # Vite configuration
+└── add-scheduled-handler.js  # Post-build script for cron support
+```
+
+## Configuration
+
+### Database Schema
+
+The application uses a `services` table to track monitored services:
+
+```sql
+CREATE TABLE services (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    is_up INTEGER NOT NULL DEFAULT 1,
+    last_checked_at TEXT,
+    status_changed_at TEXT,
+    response_time_ms INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+### Adding Services to Monitor
+
+Add services directly to the D1 database:
+
+```bash
+npx wrangler d1 execute DB --remote --command "INSERT INTO services (name, url) VALUES ('My Service', 'https://example.com/health')"
+```
+
+### Cron Schedule
+
+The health checks run every minute by default. Modify the schedule in `wrangler.json`:
+
+```json
+{
+  "triggers": {
+    "crons": ["* * * * *"]
+  }
+}
+```
+
+## Environment Variables
+
+- `TELEGRAM_TOKEN` (optional): Telegram Bot API token for notifications
+- `TELEGRAM_CHAT_ID` (optional): Telegram chat ID for notifications
+
+Set these as Cloudflare Workers secrets:
+```bash
+npx wrangler secret put TELEGRAM_TOKEN
+npx wrangler secret put TELEGRAM_CHAT_ID
+```
+
+## License
+
+MIT

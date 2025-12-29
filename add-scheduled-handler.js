@@ -54,19 +54,27 @@ async function performHealthChecks(env) {
 			const statusText = isUp ? 'UP' : 'DOWN';
 			const message = \`Service "\${service.name}" is now \${statusText}.\\nURL: \${service.url}\`;
 			
-			// Send to Telegram
-			const form = new FormData();
-			form.append("text", message);
-			form.append("chat_id", \`\${env.TELEGRAM_CHAT_ID}\`);
-			
-			const telegramResponse = await fetch(\`https://api.telegram.org/bot\${env.TELEGRAM_TOKEN}/sendMessage\`, {
-				method: 'POST',
-				headers: {
-					"Authorization": \`Bearer \${env.TELEGRAM_TOKEN}\`
-				},
-				body: form
-			});
-			telegramResponse.body?.cancel();
+			// Send to Telegram if credentials are configured
+			if (env.TELEGRAM_TOKEN && env.TELEGRAM_CHAT_ID) {
+				try {
+					const form = new FormData();
+					form.append("text", message);
+					form.append("chat_id", \`\${env.TELEGRAM_CHAT_ID}\`);
+					
+					const telegramResponse = await fetch(\`https://api.telegram.org/bot\${env.TELEGRAM_TOKEN}/sendMessage\`, {
+						method: 'POST',
+						headers: {
+							"Authorization": \`Bearer \${env.TELEGRAM_TOKEN}\`
+						},
+						body: form
+					});
+					telegramResponse.body?.cancel();
+				} catch (error) {
+					console.error('Failed to send Telegram notification:', error);
+				}
+			} else {
+				console.log('Telegram notification skipped (credentials not configured):', message);
+			}
 		} else {
 			await env.DB.prepare(
 				"UPDATE services SET last_checked_at = datetime('now'), response_time_ms = ? WHERE id = ?"

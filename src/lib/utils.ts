@@ -67,6 +67,12 @@ export async function checkServiceHealth(url: string): Promise<{ isUp: boolean; 
 }
 
 export async function sendToTelegram(msg: string, env: Env) {
+	// Skip if Telegram credentials are not configured
+	if (!env.TELEGRAM_TOKEN || !env.TELEGRAM_CHAT_ID) {
+		console.log('Telegram notification skipped (credentials not configured):', msg);
+		return;
+	}
+
 	const form = new FormData();
 	form.append("text", msg);
 	form.append("chat_id", `${env.TELEGRAM_CHAT_ID}`);
@@ -78,9 +84,14 @@ export async function sendToTelegram(msg: string, env: Env) {
 		},
 		body: form
 	};
-	const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/sendMessage`, init);
-	// Cancel the response body to prevent deadlock as we don't need to read it
-	response.body?.cancel();
+	
+	try {
+		const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/sendMessage`, init);
+		// Cancel the response body to prevent deadlock as we don't need to read it
+		response.body?.cancel();
+	} catch (error) {
+		console.error('Failed to send Telegram notification:', error);
+	}
 }
 
 export async function performHealthChecks(env: Env): Promise<void> {
