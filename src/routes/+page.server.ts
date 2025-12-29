@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ platform }) => {
 	const env = platform?.env;
 	
 	if (!env) {
-		throw new Error('Platform environment not available');
+		throw new Error('Platform environment not available. Ensure you are running in a Cloudflare Workers environment (use "npm run wrangler:dev" for local development with Workers runtime).');
 	}
 
 	// Perform health checks on page load

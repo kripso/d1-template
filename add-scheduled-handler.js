@@ -13,6 +13,9 @@ const workerContent = readFileSync(workerPath, 'utf-8');
 // Add scheduled handler before the export
 const scheduledHandler = `
 // Scheduled handler for cron triggers
+// Note: This function is duplicated from src/lib/utils.ts because the post-build script
+// needs to inject standalone JavaScript code into the generated worker bundle.
+// Any changes to the health check logic should be made in both places.
 async function performHealthChecks(env) {
 	const services = await env.DB.prepare("SELECT * FROM services").all();
 	
