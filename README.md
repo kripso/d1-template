@@ -109,7 +109,6 @@ This will:
 ```
 .
 ├── src/
-│   ├── index.ts               # Main worker entry point (fetch + scheduled handlers)
 │   ├── lib/
 │   │   └── utils.ts           # Shared utilities and health check logic
 │   ├── routes/
@@ -120,19 +119,31 @@ This will:
 ├── migrations/                # D1 database migrations
 ├── wrangler.json             # Cloudflare Workers configuration
 ├── svelte.config.js          # SvelteKit configuration
-└── vite.config.ts            # Vite configuration
+├── vite.config.ts            # Vite configuration
+└── add-scheduled-handler.js  # Post-build script to add cron support
 ```
 
 ## Architecture
 
-This project uses a clean architecture pattern:
+This project combines SvelteKit with Cloudflare Workers in a clean pattern:
 
-- **`src/index.ts`**: Main worker entry point that handles both `fetch` and `scheduled` events
-  - Fetch requests are routed to the SvelteKit app
-  - Scheduled events trigger health checks via cron
-- **SvelteKit**: Provides the frontend UI and server-side rendering
-- **Cloudflare Workers**: Serverless execution environment
+- **SvelteKit**: Handles all HTTP requests (fetch) via `@sveltejs/adapter-cloudflare`
+- **Scheduled Handler**: A minimal post-build script adds the `scheduled` export to handle cron triggers
+- **Final Worker**: Exports both `fetch` (handled by SvelteKit) and `scheduled` (for health checks)
 - **D1 Database**: Stores service status and history
+
+The generated worker follows this pattern:
+```javascript
+export default {
+  fetch(request, env, ctx) { /* SvelteKit handles this */ },
+}
+
+async function scheduled(event, env, ctx) {
+  ctx.waitUntil(performHealthChecks(env));
+}
+
+export { default, scheduled };
+```
 
 ## Configuration
 
