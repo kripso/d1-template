@@ -100,16 +100,16 @@ npm run deploy
 
 This will:
 1. Apply remote database migrations (if any)
-2. Automatically build the application (via wrangler's build command)
-3. Deploy to Cloudflare Workers
+2. Build and deploy to Cloudflare Workers
 
-**Note:** Wrangler automatically runs `npm run build` before deployment, so you don't need to build manually. The build output (`.svelte-kit/` directory) is gitignored and generated on-demand.
+**Note:** Wrangler will automatically build the SvelteKit app when deploying. The build output (`.svelte-kit/` directory) is gitignored and generated on-demand.
 
 ## Project Structure
 
 ```
 .
 ├── src/
+│   ├── index.ts               # Main worker entry point (fetch + scheduled handlers)
 │   ├── lib/
 │   │   └── utils.ts           # Shared utilities and health check logic
 │   ├── routes/
@@ -120,9 +120,19 @@ This will:
 ├── migrations/                # D1 database migrations
 ├── wrangler.json             # Cloudflare Workers configuration
 ├── svelte.config.js          # SvelteKit configuration
-├── vite.config.ts            # Vite configuration
-└── add-scheduled-handler.js  # Post-build script for cron support
+└── vite.config.ts            # Vite configuration
 ```
+
+## Architecture
+
+This project uses a clean architecture pattern:
+
+- **`src/index.ts`**: Main worker entry point that handles both `fetch` and `scheduled` events
+  - Fetch requests are routed to the SvelteKit app
+  - Scheduled events trigger health checks via cron
+- **SvelteKit**: Provides the frontend UI and server-side rendering
+- **Cloudflare Workers**: Serverless execution environment
+- **D1 Database**: Stores service status and history
 
 ## Configuration
 

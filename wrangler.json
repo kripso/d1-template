@@ -1,12 +1,9 @@
 {
 	"compatibility_date": "2025-10-08",
 	"compatibility_flags": ["nodejs_compat"],
-	"main": ".svelte-kit/cloudflare/_worker.js",
+	"main": "src/index.ts",
 	"name": "cloudflare-worker-status-page",
 	"upload_source_maps": true,
-	"build": {
-		"command": "npm run build"
-	},
 	"assets": {
 		"directory": ".svelte-kit/cloudflare/assets",
 		"binding": "ASSETS"
