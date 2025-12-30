@@ -8,16 +8,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const workerPath = join(__dirname, '.svelte-kit', 'cloudflare', '_worker.js');
-const utilsPath = join(__dirname, '.svelte-kit', 'output', 'server', 'chunks', 'utils2.js');
 
 let workerContent = readFileSync(workerPath, 'utf-8');
-const utilsContent = readFileSync(utilsPath, 'utf-8');
 
-// Import performHealthChecks from utils
+// Import performHealthChecks from utils (using the export name from build output)
 const importStatement = `import { p as performHealthChecks } from "../output/server/chunks/utils2.js";\n`;
 workerContent = workerContent.replace(
-	/(import.*?from "cloudflare:workers";)\n/,
-	`$1\n${importStatement}`
+	/(import.*?from ["']cloudflare:workers["'];?\n)/,
+	`$1${importStatement}`
 );
 
 // Add scheduled handler
@@ -27,9 +25,9 @@ async function scheduled(event, env, ctx) {
 }
 `;
 
-// Update export to include scheduled
+// Update export to include scheduled - handle various formatting
 workerContent = workerContent.replace(
-	'export {\n  worker_default as default\n};',
+	/export\s*\{\s*worker_default\s+as\s+default\s*\};?/,
 	scheduledHandler + 'export {\n  worker_default as default,\n  scheduled\n};'
 );
 
