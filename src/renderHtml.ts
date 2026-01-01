@@ -3,10 +3,7 @@ export interface ServiceStatus {
 	name: string;
 	url: string;
 	is_up: number;
-	last_checked_at: string | null;
 	status_changed_at: string | null;
-	response_time_ms: number | null;
-	created_at: string;
 }
 
 // Parse D1 datetime string to Date object
@@ -53,11 +50,6 @@ export function renderStatusPage(services: ServiceStatus[], lastUpdated: Date) {
 		const statusText = service.is_up ? 'Up' : 'Down';
 		const statusColor = service.is_up ? '#10b981' : '#ef4444';
 		const duration = formatDuration(service.status_changed_at);
-		const responseTime = service.response_time_ms ? `${service.response_time_ms}ms` : '-';
-		const lastCheckedDate = parseD1DateTime(service.last_checked_at);
-		const lastChecked = lastCheckedDate 
-			? lastCheckedDate.toLocaleString()
-			: 'Never';
 		
 		return `
 			<div class="service-card" style="background: #1e293b; border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
@@ -68,7 +60,6 @@ export function renderStatusPage(services: ServiceStatus[], lastUpdated: Date) {
 				<div style="text-align: right;">
 					<div style="font-size: 14px; font-weight: 500; color: ${statusColor};">${statusText}</div>
 					<div style="font-size: 12px; color: #94a3b8;">${statusText} for ${duration}</div>
-					<div style="font-size: 11px; color: #64748b;">Response: ${responseTime}</div>
 				</div>
 			</div>
 		`;

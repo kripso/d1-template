@@ -17,58 +17,72 @@ async function sendToTelegram(msg: string, env: Env) {
 	response.body?.cancel();
 }
 
-async function checkServiceHealth(url: string): Promise<{ isUp: boolean; responseTimeMs: number | null }> {
-	const startTime = Date.now();
-	try {
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-		
-		const response = await fetch(url, {
-			method: 'GET',
-			signal: controller.signal,
-			headers: {
-				'User-Agent': 'StatusPage-HealthCheck/1.0'
-			}
-		});
-		
-		clearTimeout(timeoutId);
-		const responseTimeMs = Date.now() - startTime;
-		
-		// Consider 2xx and 3xx status codes as "up"
-		// 3xx redirects indicate the server is responding, even if redirecting
-		// This is intentional for status page monitoring as it shows reachability
-		const isUp = response.status >= 200 && response.status < 400;
-		
-		// Cancel the response body to prevent deadlock as we only need status code
-		response.body?.cancel();
-		
-		return { isUp, responseTimeMs };
-	} catch {
-		return { isUp: false, responseTimeMs: null };
-	}
+function wait(retryDelayMs: number) {
+	return new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+}
+
+function fetchRetry(url: string, retryDelayMs: number, tries: number, fetchOptions = {}): Promise<Response> {
+    function onError(err: Error): Promise<Response> {
+        const triesLeft = tries - 1;
+        if(!triesLeft){
+            throw err;
+        }
+        return wait(retryDelayMs).then(() => fetchRetry(url, retryDelayMs, triesLeft, fetchOptions));
+    }
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    return fetch(url, { ...fetchOptions, signal: controller.signal })
+        .then((response) => {
+            clearTimeout(timeoutId);
+            return response;
+        })
+        .catch((err) => {
+            clearTimeout(timeoutId);
+            return onError(err);
+        });
+}
+
+async function checkServiceHealth(url: string): Promise<boolean> {
+    try {
+        const response = await fetchRetry(url, 5000, 3, {
+            method: 'GET',
+            headers: {
+                'User-Agent': 'StatusPage-HealthCheck/1.0'
+            }
+        });
+        
+        const isUp = response.status >= 200 && response.status < 400;
+        response.body?.cancel();
+        
+        return isUp;
+    } catch {
+        return false;
+    }
 }
 
 async function performHealthChecks(env: Env): Promise<void> {
 	const services = await env.DB.prepare("SELECT * FROM services").all<ServiceStatus>();
 	
 	for (const service of services.results) {
-		const { isUp, responseTimeMs } = await checkServiceHealth(service.url);
+		const isUp = await checkServiceHealth(service.url);
 		const wasUp = service.is_up === 1;
 		const isFirstCheck = service.status_changed_at === null;
 		const statusChanged = wasUp !== isUp;
 		
 		if (statusChanged || isFirstCheck) {
 			await env.DB.prepare(
-				"UPDATE services SET is_up = ?, last_checked_at = datetime('now'), status_changed_at = datetime('now'), response_time_ms = ? WHERE id = ?"
-			).bind(isUp ? 1 : 0, responseTimeMs, service.id).run();
+				"UPDATE services SET is_up = ?, last_checked_at = datetime('now'), status_changed_at = datetime('now') WHERE id = ?"
+			).bind(isUp ? 1 : 0, service.id).run();
 
 			const statusText = isUp ? 'UP' : 'DOWN';
 			const message = `Service "${service.name}" is now ${statusText}.\nURL: ${service.url}`;
 			await sendToTelegram(message, env);
 		} else {
 			await env.DB.prepare(
-				"UPDATE services SET last_checked_at = datetime('now'), response_time_ms = ? WHERE id = ?"
-			).bind(responseTimeMs, service.id).run();
+				"UPDATE services SET last_checked_at = datetime('now') WHERE id = ?"
+			).bind(service.id).run();
 		}
 	}
 }
@@ -85,10 +99,6 @@ async function lastUpdated(services: ServiceStatus[]): Promise<Date> {
 
 export default {
 	async fetch(request, env) {
-		const url = new URL(request.url);
-		
-		await performHealthChecks(env);
-
 		// Main status page
 		const stmt = env.DB.prepare("SELECT * FROM services ORDER BY name");
 		const { results } = await stmt.all<ServiceStatus>();
