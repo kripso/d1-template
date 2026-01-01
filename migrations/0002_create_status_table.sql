@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS services (
     is_up INTEGER NOT NULL DEFAULT 1,
     last_checked_at TEXT,
     status_changed_at TEXT,
-    response_time_ms INTEGER,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

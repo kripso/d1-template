@@ -76,6 +76,13 @@ async function performHealthChecks(env: Env): Promise<void> {
 				"UPDATE services SET is_up = ?, last_checked_at = datetime('now'), status_changed_at = datetime('now') WHERE id = ?"
 			).bind(isUp ? 1 : 0, service.id).run();
 
+			// Log the status change to changelog
+			if (statusChanged && !isFirstCheck) {
+				await env.DB.prepare(
+					"INSERT INTO changelog (service_id, previous_status, new_status) VALUES (?, ?, ?)"
+				).bind(service.id, wasUp ? 1 : 0, isUp ? 1 : 0).run();
+			}
+
 			const statusText = isUp ? 'UP' : 'DOWN';
 			const message = `Service "${service.name}" is now ${statusText}.\nURL: ${service.url}`;
 			await sendToTelegram(message, env);
@@ -104,7 +111,16 @@ export default {
 		const { results } = await stmt.all<ServiceStatus>();
 		const lastUpdatedDate = await lastUpdated(results);
 
-		return new Response(renderStatusPage(results, lastUpdatedDate), {
+		// Get changelog entries for each service (last 24 hours)
+		const changelogStmt = env.DB.prepare(`
+			SELECT service_id, new_status, changed_at 
+			FROM changelog 
+			WHERE changed_at >= datetime('now', '-24 hours')
+			ORDER BY service_id, changed_at ASC
+		`);
+		const { results: changelog } = await changelogStmt.all<{ service_id: number, new_status: number, changed_at: string }>();
+
+		return new Response(renderStatusPage(results, lastUpdatedDate, changelog), {
 			headers: {
 				"content-type": "text/html",
 			},
